@@ -28,28 +28,29 @@ Puppet.type(:package).provide :pacman, :parent => Puppet::Provider::Package do
   # Fetch the list of packages currently installed on the system.
   def self.instances
     packages = []
-    begin execpipe(listcmd()) do |process|
-      # pacman -Q output is 'packagename version-rel'
-      regex = %r{^(\S+)\s(\S+)}
-      fields = [:name, :ensure]
-      hash = {}
+    begin
+      execpipe(listcmd()) do |process|
+        # pacman -Q output is 'packagename version-rel'
+        regex = %r{^(\S+)\s(\S+)}
+        fields = [:name, :ensure]
+        hash = {}
 
-      process.each { |line|
-        if match = regex.match(line)
-          fields.zip(match.captures) { |field,value|
-            hash[field] = value
-          }
+        process.each { |line|
+          if match = regex.match(line)
+            fields.zip(match.captures) { |field,value|
+              hash[field] = value
+            }
 
-          name = hash[:name]
-          hash[:provider] = self.name
+            name = hash[:name]
+            hash[:provider] = self.name
 
-          packages << new(hash)
-          hash = {}
-        else
-          warning("Failed to match line %s" % line)
-        end
-      }
-    end
+            packages << new(hash)
+            hash = {}
+          else
+            warning("Failed to match line %s" % line)
+          end
+        }
+      end
     rescue Puppet::ExecutionFailure
       return nil
     end
