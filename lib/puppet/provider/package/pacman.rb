@@ -1,20 +1,18 @@
-# pacman.rb puppet provider for archlinux
-# Miah Johnson <miah (at) chia-pet.org>
-
 require 'puppet/provider/package'
 
-Puppet.type(:package).provide :pacman, :parent => Puppet::Provider::Package do
+Puppet::Type.type(:package).provide :pacman, :parent => Puppet::Provider::Package do
   desc "Support for the Package Manager Utility (pacman) used in Archlinux."
 
   commands :pacman => "/usr/bin/pacman"
   defaultfor :operatingsystem => :archlinux
   confine    :operatingsystem => :archlinux
+  has_feature :upgradeable
 
   # Install a package using 'pacman'.
   # Installs quietly, without confirmation or progressbar, updates package
   # list from servers defined in pacman.conf.
   def install
-    pacman "--noconfirm", "--noprogressbar", "-S", @resource[:name]
+    pacman "--noconfirm", "--noprogressbar", "-Sy", @resource[:name]
 
     unless self.query
       raise Puppet::ExecutionFailure.new("Could not find package %s" % self.name)
@@ -64,6 +62,12 @@ Puppet.type(:package).provide :pacman, :parent => Puppet::Provider::Package do
     self.install
   end
 
+  def latest
+    pacman "-Sy"
+    output = pacman "-Sp", "--print-format", "%v", @resource[:name]
+    output.chomp
+  end
+
   # Querys the pacman master list for information about the package.
   def query
     begin
@@ -89,3 +93,5 @@ Puppet.type(:package).provide :pacman, :parent => Puppet::Provider::Package do
     pacman "--noconfirm", "--noprogressbar", "-R", @resource[:name]
   end
 end
+
+# vim: set softtabstop=2 shiftwidth=2 expandtab
