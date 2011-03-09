@@ -8,6 +8,7 @@ describe provider do
   before do
     @resource = stub 'resource'
     @resource.stubs(:[]).returns("package")
+    @resource.stubs(:name).returns("name")
     @provider = provider.new(@resource)
   end
 
@@ -45,7 +46,7 @@ describe provider do
       provider.
         expects(:execute).
         with { |args|
-          args[3,4] == ["-S", @resource[0]]
+          args[3,4] == ["-Sy", @resource[0]]
         }.
         returns("")
 
@@ -53,9 +54,8 @@ describe provider do
     end
 
     it "should raise an ExecutionFailure if the installation failed" do
-      pending("'install' doesn't raise an exception when 'query' returns an empty hash")
       provider.stubs(:execute).returns("")
-      @provider.expects(:query).returns({})
+      @provider.expects(:query).returns(nil)
 
       lambda { @provider.install }.should raise_exception(Puppet::ExecutionFailure)
     end
@@ -140,10 +140,6 @@ EOF
     end
 
     it "should return a nil if the package isn't found" do
-      # I think query is actually supposed to return nil if the package isn't
-      # found. The RPM provider does, and package.rb seems to expect it to.
-
-      pending("query should return nil")
       provider.expects(:execute).returns("")
       @provider.query.should be_nil
     end
@@ -193,6 +189,49 @@ EOF
       provider.expects(:execpipe).yields("blah")
       provider.expects(:warning).with("Failed to match line blah")
       provider.instances.should == []
+    end
+  end
+
+  describe "when determining the latest version" do
+    it "should refresh package list" do
+      refreshed = states('refreshed').starts_as('unrefreshed')
+      provider.
+        expects(:execute).
+        when(refreshed.is('unrefreshed')).
+        with(['/usr/bin/pacman', '-Sy']).
+        then(refreshed.is('refreshed'))
+
+      provider.
+        stubs(:execute).
+        when(refreshed.is('refreshed')).
+        returns("")
+
+      @provider.latest
+    end
+
+    it "should get query pacman for the latest version" do
+      refreshed = states('refreshed').starts_as('unrefreshed')
+      provider.
+        stubs(:execute).
+        when(refreshed.is('unrefreshed')).
+        then(refreshed.is('refreshed'))
+
+      provider.
+        expects(:execute).
+        when(refreshed.is('refreshed')).
+        with(['/usr/bin/pacman', '-Sp', '--print-format', '%v', @resource[0]]).
+        returns("")
+
+      @provider.latest
+    end
+
+    it "should return the version number from pacman" do
+      provider.
+        expects(:execute).
+        at_least_once().
+        returns("1.00.2-3\n")
+
+      @provider.latest.should == "1.00.2-3"
     end
   end
 end

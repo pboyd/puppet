@@ -52,7 +52,7 @@ Puppet::Type.type(:package).provide :pacman, :parent => Puppet::Provider::Packag
     rescue Puppet::ExecutionFailure
       return nil
     end
-    return packages
+    packages
   end
 
   # Because Archlinux is a rolling release based distro, installing a package
@@ -71,11 +71,10 @@ Puppet::Type.type(:package).provide :pacman, :parent => Puppet::Provider::Packag
   # Querys the pacman master list for information about the package.
   def query
     begin
-      hash = {}
       output = pacman("-Qi", @resource[:name])
 
       if output =~ /Version.*:\s(.+)/
-        hash[:ensure] = $1
+        return { :ensure => $1 }
       end
     rescue Puppet::ExecutionFailure
       return {
@@ -85,7 +84,7 @@ Puppet::Type.type(:package).provide :pacman, :parent => Puppet::Provider::Packag
         :error => 'ok',
       }
     end
-    return hash
+    nil
   end
 
   # Removes a package from the system.
@@ -93,5 +92,3 @@ Puppet::Type.type(:package).provide :pacman, :parent => Puppet::Provider::Packag
     pacman "--noconfirm", "--noprogressbar", "-R", @resource[:name]
   end
 end
-
-# vim: set softtabstop=2 shiftwidth=2 expandtab
